@@ -83,11 +83,25 @@ To guide the visual narrative and prevent creative stagnation, the text prompt s
 ## 4. Data Flow & Optimization
 
 ### 4.0. Production Deployment
-**Production URL**: https://infinite-scroll-bk4qg7pjj-dugboteks-projects.vercel.app
+**Production URL**: https://infinite-scroll-xafme9z5n-dugboteks-projects.vercel.app
 **Deployment Platform**: Vercel
 **Frontend**: React/Vite served as static build
-**Backend**: Node.js/Express deployed as serverless functions
-**Environment Variables Required**: REPLICATE_API_TOKEN, GEMINI_API_KEY
+**Backend**: ES Module serverless functions with full outpainting pipeline
+**Environment Variables**: ✅ Configured (REPLICATE_API_TOKEN, GEMINI_API_KEY, etc.)
+**API Endpoints**:
+- `/api/generate-next-image` - Full outpainting pipeline with image slicing and cropping
+- `/api/health` - System health check
+- `/api/models` - Available AI models
+
+**Outpainting Implementation**: ✅ COMPLETE
+- **Smart Model Selection**: flux-schnell for initial, flux-fill-pro for outpainting
+- **Image Slicing**: 35% bottom slice extraction for smooth transitions
+- **Masking System**: Black (preserve) / White (generate) mask creation
+- **Cropping Pipeline**: Removes duplicate slices for seamless flow
+- **Perspective Control**: Strict top-down aerial view maintained
+- **Prompt Evolution**: Gemini-1.5-flash for narrative continuity
+
+**Status**: ✅ FULLY DEPLOYED & OPERATIONAL
 
 ### 4.1. Multi-Model Image Generation Flow
 1.  **Initial Load:** User opens the site. Frontend calls the backend `/api/generate-next-image` endpoint with no payload.

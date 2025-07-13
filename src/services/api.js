@@ -9,12 +9,17 @@ const HEALTH_URL = `${BASE_URL}/api/health`;
 
 // State to track current prompt and model for continuity
 let currentPrompt = null;
-let currentModel = 'flux-fill-pro'; // Default to outpainting model for better continuity
+let currentModel = 'flux-schnell'; // Default to speed model for initial generation
 let debugMode = false;
 
 export const fetchNextImage = async (previousImage = null, modelName = null, enableDebug = false, customPrompt = null) => {
   try {
-    const selectedModel = modelName || currentModel;
+    // Auto-select model based on whether this is initial generation or continuation
+    let selectedModel = modelName || currentModel;
+    if (!modelName) {
+      selectedModel = previousImage ? 'flux-fill-pro' : 'flux-schnell';
+    }
+    
     const promptToUse = customPrompt || currentPrompt;
     
     console.log('Fetching next image...', { 
@@ -163,7 +168,7 @@ export const setDebugMode = (enabled) => {
 // Clear state (useful for reset)
 export const clearState = () => {
   currentPrompt = null;
-  currentModel = 'flux-fill-pro';
+  currentModel = 'flux-schnell';
   debugMode = false;
   console.log('API state cleared');
 };

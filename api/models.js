@@ -1,6 +1,32 @@
-const { getAvailableModels, MODEL_CONFIGS, DEFAULT_MODEL } = require('../backend/aiService');
+// Model configurations
+const MODEL_CONFIGS = {
+  'flux-schnell': {
+    name: 'black-forest-labs/flux-schnell',
+    steps: 1,
+    guidance_scale: 0.0,
+    use_case: 'speed'
+  },
+  'flux-fill-pro': {
+    name: 'black-forest-labs/flux-fill-pro',
+    steps: 4,
+    guidance_scale: 3.5,
+    use_case: 'outpainting'
+  },
+  'flux-schnell-lora': {
+    name: 'black-forest-labs/flux-schnell-lora',
+    steps: 2,
+    guidance_scale: 1.0,
+    use_case: 'balanced'
+  }
+};
 
-module.exports = async function handler(req, res) {
+const DEFAULT_MODEL = 'flux-schnell';
+
+function getAvailableModels() {
+  return Object.keys(MODEL_CONFIGS);
+}
+
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');

@@ -43,9 +43,10 @@ function App() {
     setIsLoading(true);
     try {
       const lastImage = imageUrls.length > 0 ? imageUrls[imageUrls.length - 1] : null;
-      const modelToUse = forceModel || currentModel;
+      // Only use explicit model if forced, otherwise let backend auto-select
+      const modelToUse = forceModel || null;
       
-      console.log(`Loading image with model: ${modelToUse}, debug: ${debugMode}, initial: ${isInitialLoad}, customPrompt: ${!!customPrompt}`);
+      console.log(`Loading image with model: ${modelToUse || 'auto-select'}, debug: ${debugMode}, initial: ${isInitialLoad}, customPrompt: ${!!customPrompt}`);
       
       const imageData = await fetchNextImage(
         lastImage?.imageUrl || null, 
