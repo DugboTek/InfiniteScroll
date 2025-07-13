@@ -144,3 +144,4 @@ secrets.json
 *.tgz
 *.tar.gz
 .npmrc 
+.vercel

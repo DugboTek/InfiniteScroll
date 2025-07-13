@@ -82,6 +82,13 @@ To guide the visual narrative and prevent creative stagnation, the text prompt s
 
 ## 4. Data Flow & Optimization
 
+### 4.0. Production Deployment
+**Production URL**: https://infinite-scroll-bk4qg7pjj-dugboteks-projects.vercel.app
+**Deployment Platform**: Vercel
+**Frontend**: React/Vite served as static build
+**Backend**: Node.js/Express deployed as serverless functions
+**Environment Variables Required**: REPLICATE_API_TOKEN, GEMINI_API_KEY
+
 ### 4.1. Multi-Model Image Generation Flow
 1.  **Initial Load:** User opens the site. Frontend calls the backend `/api/generate-next-image` endpoint with no payload.
 2.  **Model Selection:** Backend selects appropriate model (FLUX Schnell for speed, FLUX Fill Pro for outpainting).

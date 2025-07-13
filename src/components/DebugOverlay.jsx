@@ -6,8 +6,8 @@ import {
   getCurrentPrompt,
   getDebugMode,
   setDebugMode,
-  evolvePrompt,
-  clearState 
+  clearState,
+  checkHealth
 } from '../services/api';
 import './DebugOverlay.css';
 

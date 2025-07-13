@@ -8,7 +8,7 @@ import {
   getCurrentModel, 
   getDebugMode,
   setDebugMode,
-  expandPrompt 
+  checkHealth
 } from './services/api';
 
 function App() {
@@ -119,7 +119,8 @@ function App() {
       setIsExpandingPrompt(true);
       
       // Expand the short prompt into a detailed aerial view description
-      const expandedPrompt = await expandPrompt(userPrompt);
+      // Prompt expansion is now handled within the backend API
+      const expandedPrompt = userPrompt;
       console.log('✨ Dream world expanded:', expandedPrompt);
       
       // Mark that the user has started their world

@@ -232,12 +232,12 @@ app.get('/env-info', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
-  console.log(`API endpoint: http://localhost:${PORT}/api/generate-next-image`);
-  console.log(`Environment info: http://localhost:${PORT}/env-info`);
-  console.log(`Available models: ${Object.keys(MODEL_CONFIGS).join(', ')}`);
-  console.log(`Default model: ${DEFAULT_MODEL}`);
-});
+// Start server (for local development)
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+// Export for Vercel
+module.exports = app;

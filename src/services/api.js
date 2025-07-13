@@ -1,9 +1,11 @@
 // This service will handle communication with the backend.
 
-const API_URL = 'http://localhost:3001/api/generate-next-image'; // Backend runs on 3001
-const MODELS_URL = 'http://localhost:3001/api/models';
-const EVOLVE_PROMPT_URL = 'http://localhost:3001/api/evolve-prompt';
-const EXPAND_PROMPT_URL = 'http://localhost:3001/api/expand-prompt';
+// Use relative URLs for production, localhost for development
+const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const BASE_URL = isDevelopment ? 'http://localhost:3001' : '';
+const API_URL = `${BASE_URL}/api/generate-next-image`;
+const MODELS_URL = `${BASE_URL}/api/models`;
+const HEALTH_URL = `${BASE_URL}/api/health`;
 
 // State to track current prompt and model for continuity
 let currentPrompt = null;
@@ -101,73 +103,43 @@ export const fetchAvailableModels = async () => {
     console.error("Failed to fetch models:", error);
     // Return fallback models
     return {
-      models: [
-        { id: 'flux-schnell', name: 'FLUX SCHNELL', config: { use_case: 'speed' } },
-        { id: 'flux-fill-pro', name: 'FLUX FILL PRO', config: { use_case: 'outpainting' } }
-      ],
+      availableModels: ['flux-schnell', 'flux-fill-pro'],
       defaultModel: 'flux-schnell',
       error: error.message
     };
   }
 };
 
-export const evolvePrompt = async (prompt) => {
+export const checkHealth = async () => {
   try {
-    console.log('Evolving prompt:', prompt);
+    console.log('Checking API health...');
     
-    const response = await fetch(EVOLVE_PROMPT_URL, {
-      method: 'POST',
+    const response = await fetch(HEALTH_URL, {
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ prompt }),
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to evolve prompt: ${response.statusText}`);
+      throw new Error(`Health check failed: ${response.statusText}`);
     }
     
     const data = await response.json();
-    console.log('Evolved prompt:', data);
+    console.log('Health check result:', data);
     
-    return data.evolvedPrompt;
+    return data;
 
   } catch (error) {
-    console.error("Failed to evolve prompt:", error);
-    return prompt; // Return original prompt on error
+    console.error("Health check failed:", error);
+    return {
+      status: 'unhealthy',
+      error: error.message
+    };
   }
 };
 
-export const expandPrompt = async (userPrompt) => {
-  try {
-    console.log('Expanding user prompt:', userPrompt);
-    
-    const response = await fetch(EXPAND_PROMPT_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ userPrompt }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to expand prompt: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    console.log('Expanded prompt:', {
-      original: data.originalPrompt,
-      expanded: data.expandedPrompt
-    });
-    
-    return data.expandedPrompt;
-
-  } catch (error) {
-    console.error("Failed to expand prompt:", error);
-    // Return a basic fallback expansion
-    return `Aerial view of ${userPrompt}, captured from above with dramatic lighting and intricate details`;
-  }
-};
+// Note: Prompt evolution and expansion are now handled within the main API endpoint
 
 // Getters and setters for global state
 export const getCurrentModel = () => currentModel;
