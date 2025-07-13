@@ -16,6 +16,9 @@ const IMAGE_HEIGHT = parseInt(process.env.IMAGE_HEIGHT) || 768;
 const GENERATION_TIMEOUT = parseInt(process.env.GENERATION_TIMEOUT) || 60000;
 const SLICE_HEIGHT = 80; // Reduced height to minimize repetition at seam
 
+// Global state for theme continuity
+let dreamWorldTheme = null; // Store the user's original dream world theme for consistent generation
+
 // Model configurations optimized for speed and quality
 const MODEL_CONFIGS = {
   'flux-schnell': {
@@ -55,18 +58,18 @@ const MODEL_CONFIGS = {
 // Default model preference - with smart switching (flux-schnell for initial, flux-fill-pro for outpainting)
 const DEFAULT_MODEL = 'flux-fill-pro';
 
-// Starting prompts for initial image generation - overhead aerial views of distant scenes
+// Starting prompts for initial image generation - consistent map-like perspectives for seamless scrolling
 const STARTING_PROMPTS = [
-  "Aerial view of a vast mystical forest with ancient tree canopies stretching to the horizon, dawn light casting long shadows",
-  "Bird's eye view of a sprawling futuristic metropolis with gleaming towers and flying vehicles, seen from high altitude",
-  "Overhead shot of an alien planet's landscape with bizarre rock formations and twin moons visible in the alien sky",
-  "Satellite view of deep ocean waters with glowing bioluminescent patterns visible from above, vast and mysterious",
-  "Aerial perspective of a massive steampunk industrial complex with brass smokestacks and steam clouds rising into the sky",
-  "High angle view of an endless magical library city with tower spires and floating platforms extending into the distance",
-  "Overhead view of post-apocalyptic ruins scattered across a vast wasteland, nature slowly reclaiming the distant structures",
-  "Space view of swirling cosmic nebulae and distant star clusters stretching across the infinite void",
-  "Aerial shot of a remote medieval fortress on a clifftop island surrounded by endless stormy seas",
-  "Bird's eye view of a neon-lit cyberpunk district sprawling into the distance, holographic advertisements glowing in the night"
+  "Top-down map view of mystical forest district at 800-foot altitude, showing uniform ancient tree canopy with clearings in natural patterns, consistent scale, captured with even overhead lighting for seamless navigation",
+  "Overhead satellite view of futuristic metropolitan district from fixed 1000-foot altitude, featuring regular grid of gleaming towers at consistent scale, geometric transportation networks, captured with uniform daylight",
+  "Straight-down aerial map of alien landscape sector at 600-foot altitude, showing organized bizarre rock formations in natural patterns, consistent alien flora scale, captured with steady twin-moon lighting",
+  "Top-down satellite perspective of deep ocean region at fixed altitude, showing bioluminescent patterns in organized formations, consistent wave textures, captured with uniform ambient lighting for continuous map view",
+  "Overhead map view of steampunk industrial district at 700-foot altitude, featuring organized brass infrastructure in grid layout, consistent smokestacks scale, captured with steady overhead lighting",
+  "Straight-down aerial view of magical library city sector at 900-foot altitude, showing tower spires arranged in navigable patterns, consistent architectural scale, captured with even mystical lighting",
+  "Top-down map perspective of post-apocalyptic district at 500-foot altitude, showing ruins organized in former city grid, consistent overgrowth patterns, captured with uniform overcast lighting",
+  "Fixed-altitude space view of cosmic nebula region showing swirling patterns in organized formations, consistent star cluster scale, captured with steady cosmic lighting for seamless space navigation",
+  "Overhead map view of medieval fortress island at 600-foot altitude, showing castle complex centered with defensive patterns, consistent scale structures, captured with uniform noon lighting",
+  "Top-down satellite view of cyberpunk district at fixed 800-foot altitude, featuring neon-lit buildings in organized grid layout, consistent street patterns, captured with steady night lighting"
 ];
 
 /**
@@ -249,8 +252,8 @@ async function generateWithOutpainting(previousImageUrl, prompt, config) {
     const imageBase64 = `data:image/png;base64,${image.toString('base64')}`;
     const maskBase64 = `data:image/png;base64,${mask.toString('base64')}`;
     
-    // Enhance prompt to encourage distinct content while maintaining perspective
-    const enhancedPrompt = `${prompt}. Generate NEW and DISTINCT content below, avoiding repetition of elements from above. Create fresh visual elements while maintaining the overall aerial perspective and scene continuity.`;
+    // Enhance prompt for seamless map-like continuity with fixed perspective
+    const enhancedPrompt = `${prompt}. CRITICAL: Maintain EXACT same altitude, camera angle, and zoom level as the image above. Generate content that appears to be a natural continuation of the terrain/landscape below the existing area. Keep consistent lighting direction, time of day, and perspective as if viewing a continuous map from a fixed height. NO camera movement, angle changes, or zoom variations. The new content should seamlessly connect as if scrolling down on the same aerial photograph.`;
     
     console.log('🚀 Calling FLUX Fill Pro with enhanced prompt:', enhancedPrompt);
     
@@ -384,11 +387,11 @@ async function createOutpaintingInputs(previousImageBuffer, metadata) {
     
     const mask = maskBuffer;
     
-    console.log('✅ Outpainting inputs created with anti-repetition optimizations');
-    console.log('📏 Reduced slice height to', sliceHeight, 'pixels to minimize overlap');
+    console.log('✅ Outpainting inputs created for seamless map-like scrolling');
+    console.log('📏 Reduced slice height to', sliceHeight, 'pixels for smooth transitions');
     console.log('🎭 Gradient mask: BLACK (preserve) → GRAY (transition) → WHITE (generate)');
-    console.log('📍 Layout: Small bottom slice from previous image placed at TOP');
-    console.log('🎨 AI will generate DISTINCT content below, avoiding repetition');
+    console.log('🗺️ Map continuity: Maintaining exact perspective, altitude, and scale');
+    console.log('🧭 Navigation feel: Terrain extends naturally southward as if scrolling on same map');
     
     return { image: outpaintingImage, mask };
     
@@ -450,23 +453,33 @@ async function evolvePrompt(currentPrompt) {
     
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
+    const themeContext = dreamWorldTheme ? 
+      `\n    DREAM WORLD THEME: The user's original vision was "${dreamWorldTheme}". ALL content must stay within this thematic world while expanding the map.` : 
+      '';
+
     const evolutionPrompt = `
-    You are a creative narrative director for a visual story. Given the current scene description, create a new prompt that naturally continues the story while maintaining visual coherence and the overhead/aerial perspective.
+    You are creating the next section of a seamless aerial map within the user's dream world. The goal is to maintain EXACT consistency for smooth scrolling navigation while staying true to the established theme.
 
-    Current scene: "${currentPrompt}"
+    Current map section: "${currentPrompt}"${themeContext}
 
-    Guidelines:
-    - ALWAYS maintain overhead, aerial, bird's eye, or satellite view perspective
-    - Keep scenes distant and far away, viewed from above
-    - Maintain visual continuity (similar lighting, style, atmosphere)
-    - Gradually introduce new elements or evolve existing ones while keeping the high-altitude perspective
-    - Keep the narrative flowing naturally as if the camera is moving across a vast landscape
-    - Ensure the new scene could believably connect to the previous one when viewed from above
-    - Limit response to 2-3 sentences maximum
-    - Focus on visual elements that an AI image generator can render from an overhead view
-    - Use terms like "aerial view", "bird's eye view", "overhead shot", "satellite view", "from above"
+    CRITICAL REQUIREMENTS FOR SEAMLESS MAP CONTINUATION:
+    - IDENTICAL PERSPECTIVE: Maintain exact same altitude, viewing angle, and zoom level
+    - SAME LIGHTING: Keep identical lighting direction, time of day, and shadow patterns
+    - CONSISTENT SCALE: All objects must maintain the same proportional sizes
+    - TERRAIN CONTINUITY: Landscape should naturally extend as if scrolling south on the same map
+    - NO CAMERA CHANGES: No altitude shifts, angle variations, or zoom changes
+    - TECHNICAL CONSISTENCY: Same satellite/map view style throughout
+    - THEMATIC CONSISTENCY: Stay within the established dream world theme throughout
 
-    New scene description:`;
+    EVOLUTION APPROACH:
+    - Introduce new terrain/structures that belong to the same dream world theme
+    - Maintain same environmental conditions (weather, lighting, season) as established
+    - Keep architectural/natural elements at consistent scale within the theme
+    - Preserve the map-like quality and navigational feel
+    - Ensure smooth terrain transition that makes thematic sense
+    - All new content should feel like a natural extension of the user's original dream world
+
+    Create the next map section that continues the dream world (2-3 sentences maximum):`;
     
     const result = await model.generateContent(evolutionPrompt);
     const response = await result.response;
@@ -563,10 +576,95 @@ function addPromptVariation(prompt) {
   return `${prompt} ${variation}`;
 }
 
+/**
+ * Expand a short user prompt into a detailed aerial view description
+ */
+async function expandUserPrompt(userPrompt) {
+  try {
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY not found in environment variables');
+    }
+    
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    
+    const expansionPrompt = `Transform this short user input into a detailed aerial view prompt that will create seamless scrolling map-like imagery:
+
+USER INPUT: "${userPrompt}"
+
+CRITICAL REQUIREMENTS FOR SEAMLESS SCROLLING:
+- FIXED PERSPECTIVE: Establish a consistent altitude and viewing angle (straight down or specific angle)
+- CONSISTENT SCALE: All elements should be at the same zoom level/scale
+- MAP-LIKE VIEW: Should feel like viewing a continuous satellite map or aerial photograph
+- UNIFORM LIGHTING: Establish consistent lighting direction and time of day
+- SEAMLESS TERRAIN: Design landscape that can naturally extend in all directions
+
+TECHNICAL SPECIFICATIONS:
+- Altitude: High enough to see landscape patterns but detailed enough to see structures
+- Viewing angle: Straight down overhead view (90 degrees) or consistent slight angle
+- Scale: Consistent object sizes (buildings, trees, roads should maintain proportional scale)
+- Lighting: Establish single light source direction that can be maintained across images
+- Composition: Design as if it's one section of a larger continuous map
+
+EXAMPLES:
+Input: "medieval castle" 
+Output: "Top-down aerial map view of a medieval castle complex at 500-foot altitude, showing the fortress positioned in the center with concentric defensive walls, surrounded by organized village districts with uniform-scale buildings, roads radiating outward in a grid pattern, captured with consistent noon lighting from the southeast creating uniform shadows."
+
+Input: "futuristic city"
+Output: "Overhead satellite-style view of a futuristic metropolitan district from fixed 1000-foot altitude, featuring a regular grid of glass towers at consistent scale, transportation networks forming geometric patterns, all captured with uniform daylight from above-right, designed as one section of a larger continuous urban map."
+
+Now expand the user's input following this format for seamless map-like scrolling:`;
+
+    console.log('🤖 Calling Gemini to expand prompt...');
+    
+    const result = await model.generateContent(expansionPrompt);
+    const response = await result.response;
+    const expandedPrompt = response.text().trim();
+    
+      // Clean up the response (remove any quotes or formatting)
+  const cleanPrompt = expandedPrompt.replace(/^["']|["']$/g, '').trim();
+  
+  // Store the user's original theme for future prompt evolution
+  dreamWorldTheme = userPrompt;
+  
+  console.log('📝 Original dream world:', userPrompt);
+  console.log('🌍 Theme stored for continuity:', dreamWorldTheme);
+  console.log('✨ Expanded map prompt:', cleanPrompt);
+  
+  return cleanPrompt;
+    
+  } catch (error) {
+    console.error('Error expanding user prompt:', error);
+    
+    // Fallback to consistent map-like template expansion
+    const fallbackPrompts = {
+      'medieval castle': 'Top-down map view of a medieval castle complex at 500-foot altitude, showing the fortress centered with defensive walls, surrounded by organized village districts with consistent-scale buildings, roads in grid patterns, captured with uniform noon lighting from southeast',
+      'futuristic city': 'Overhead satellite view of a futuristic metropolitan district from fixed 1000-foot altitude, featuring regular grid of glass towers at consistent scale, geometric transportation networks, captured with uniform daylight, designed as continuous urban map section',
+      'mystical forest': 'Straight-down aerial map view of an enchanted forest canopy at 800-foot altitude, showing uniform tree coverage with clearings in natural patterns, consistent scale throughout, captured with even overhead lighting for seamless map-like appearance',
+      'desert oasis': 'Top-down satellite perspective of desert oasis at 600-foot altitude, showing circular oasis centered with palm groves, surrounded by regular sand dune patterns, captured with consistent noon sun positioning for uniform shadows',
+      'floating islands': 'Overhead map view of floating island archipelago at fixed 1200-foot altitude, showing islands arranged in navigable patterns with consistent scale, uniform cloud coverage, captured with steady overhead lighting',
+      'underwater city': 'Top-down sonar-map style view of underwater city district at consistent depth perspective, showing organized dome structures in grid layout, uniform scale coral gardens, captured with even ambient lighting for continuous map appearance'
+    };
+    
+    const fallback = fallbackPrompts[userPrompt.toLowerCase()] || 
+      `Top-down map view of ${userPrompt} at fixed altitude with consistent scale, uniform lighting, and seamless terrain patterns designed for continuous scrolling navigation`;
+    
+    // Store the user's original theme even when using fallback
+    dreamWorldTheme = userPrompt;
+    
+    console.log('🔄 Using fallback expansion:', fallback);
+    console.log('🌍 Theme stored for continuity (fallback):', dreamWorldTheme);
+    return fallback;
+  }
+}
+
 module.exports = {
   generateInitialImage,
   generateNextImage,
   evolvePrompt,
+  expandUserPrompt,
   getAvailableModels,
   MODEL_CONFIGS,
   DEFAULT_MODEL

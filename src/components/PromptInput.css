@@ -1,0 +1,290 @@
+/* Dream World Main Overlay - ChatGPT Style */
+.dream-world-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0;
+  }
+  to { 
+    opacity: 1;
+  }
+}
+
+/* Main Container */
+.dream-world-container {
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+  animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header Section */
+.dream-world-header {
+  margin-bottom: 3rem;
+}
+
+.dream-world-title {
+  font-size: 2.75rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: #ffffff;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.dream-world-subtitle {
+  color: #a0a0a0;
+  font-size: 1.125rem;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+  font-weight: 400;
+}
+
+/* Form Section */
+.dream-world-form {
+  margin-bottom: 2.5rem;
+}
+
+.dream-input-container {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  background: #1a1a1a;
+  border: 1px solid #333333;
+  border-radius: 0.75rem;
+  padding: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.dream-input-container:focus-within {
+  border-color: #ffffff;
+  background: #1f1f1f;
+}
+
+.dream-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 1rem 1.25rem;
+  color: #ffffff;
+  font-size: 1rem;
+  outline: none;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 400;
+}
+
+.dream-input::placeholder {
+  color: #666666;
+}
+
+.dream-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dream-submit-btn {
+  background: #ffffff;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.875rem 1.25rem;
+  color: #000000;
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.dream-submit-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.dream-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #333333;
+  color: #666666;
+}
+
+.dream-submit-btn svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.dream-submit-btn.loading {
+  pointer-events: none;
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #666666;
+  border-top: 2px solid #000000;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Examples Section */
+.dream-examples-section {
+  margin-bottom: 3rem;
+}
+
+.examples-label {
+  color: #a0a0a0;
+  font-size: 0.9rem;
+  margin: 0 0 1rem 0;
+  font-weight: 400;
+}
+
+.dream-examples-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem;
+}
+
+.dream-example-chip {
+  background: #1a1a1a;
+  border: 1px solid #333333;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  color: #ffffff;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  font-weight: 400;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.dream-example-chip:hover:not(:disabled) {
+  background: #2a2a2a;
+  border-color: #ffffff;
+}
+
+.dream-example-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Features Section */
+.dream-features {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.feature {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: #808080;
+  font-size: 0.8rem;
+  text-align: center;
+  max-width: 120px;
+  font-weight: 400;
+}
+
+.feature-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  background: #333333;
+  border-radius: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dream-world-overlay {
+    padding: 1.5rem;
+  }
+  
+  .dream-world-title {
+    font-size: 2.25rem;
+  }
+  
+  .dream-world-subtitle {
+    font-size: 1rem;
+  }
+  
+  .dream-input-container {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .dream-submit-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .dream-examples-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.5rem;
+  }
+  
+  .dream-features {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dream-world-overlay {
+    padding: 1rem;
+  }
+  
+  .dream-world-title {
+    font-size: 1.875rem;
+  }
+  
+  .dream-input {
+    font-size: 1rem;
+    padding: 0.875rem 1rem;
+  }
+  
+  .dream-examples-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .dream-features {
+    display: none; /* Hide on very small screens */
+  }
+} 

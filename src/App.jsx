@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ImageContainer from './components/ImageContainer';
 import DebugOverlay from './components/DebugOverlay';
+import PromptInput from './components/PromptInput';
 import useInfiniteScroll from './hooks/useInfiniteScroll';
 import { 
   fetchNextImage, 
   getCurrentModel, 
   getDebugMode,
-  setDebugMode 
+  setDebugMode,
+  expandPrompt 
 } from './services/api';
 
 function App() {
@@ -15,11 +17,13 @@ function App() {
   const [currentModel, setCurrentModel] = useState(getCurrentModel());
   const [debugMode, setDebugModeState] = useState(getDebugMode());
   const [lastImageData, setLastImageData] = useState(null);
+  const [isExpandingPrompt, setIsExpandingPrompt] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   
   // Ref to prevent duplicate initial loads (React StrictMode protection)
   const initialLoadAttempted = useRef(false);
 
-  const loadMoreImages = useCallback(async (forceModel = null, isInitialLoad = false) => {
+  const loadMoreImages = useCallback(async (forceModel = null, isInitialLoad = false, customPrompt = null) => {
     // Prevent duplicate initial loads (React StrictMode protection)
     if (isInitialLoad && initialLoadAttempted.current) {
       console.log('⚠️ Skipping duplicate initial load attempt (React StrictMode)');
@@ -41,12 +45,13 @@ function App() {
       const lastImage = imageUrls.length > 0 ? imageUrls[imageUrls.length - 1] : null;
       const modelToUse = forceModel || currentModel;
       
-      console.log(`Loading image with model: ${modelToUse}, debug: ${debugMode}, initial: ${isInitialLoad}`);
+      console.log(`Loading image with model: ${modelToUse}, debug: ${debugMode}, initial: ${isInitialLoad}, customPrompt: ${!!customPrompt}`);
       
       const imageData = await fetchNextImage(
         lastImage?.imageUrl || null, 
         modelToUse, 
-        debugMode
+        debugMode,
+        customPrompt
       );
       
       if (imageData && imageData.imageUrl) {
@@ -107,6 +112,33 @@ function App() {
     return loadMoreImages(currentModel, false); // Not an initial load
   }, [currentModel, loadMoreImages]);
 
+  // Handle custom prompt submission
+  const handlePromptSubmit = useCallback(async (userPrompt) => {
+    try {
+      console.log('🌍 User creating dream world:', userPrompt);
+      setIsExpandingPrompt(true);
+      
+      // Expand the short prompt into a detailed aerial view description
+      const expandedPrompt = await expandPrompt(userPrompt);
+      console.log('✨ Dream world expanded:', expandedPrompt);
+      
+      // Mark that the user has started their world
+      setHasStarted(true);
+      
+      // Clear existing images to start fresh with new world
+      setImageUrls([]);
+      initialLoadAttempted.current = false;
+      
+      // Generate initial image with expanded prompt
+      await loadMoreImages(currentModel, true, expandedPrompt);
+      
+    } catch (error) {
+      console.error('Error creating dream world:', error);
+    } finally {
+      setIsExpandingPrompt(false);
+    }
+  }, [currentModel, loadMoreImages]);
+
   return (
     <div className="App">
       {/* Debug Overlay */}
@@ -157,6 +189,13 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Dream World Input */}
+      <PromptInput 
+        onPromptSubmit={handlePromptSubmit}
+        isExpanding={isExpandingPrompt}
+        hasStarted={hasStarted}
+      />
     </div>
   );
 }

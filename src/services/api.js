@@ -3,20 +3,24 @@
 const API_URL = 'http://localhost:3001/api/generate-next-image'; // Backend runs on 3001
 const MODELS_URL = 'http://localhost:3001/api/models';
 const EVOLVE_PROMPT_URL = 'http://localhost:3001/api/evolve-prompt';
+const EXPAND_PROMPT_URL = 'http://localhost:3001/api/expand-prompt';
 
 // State to track current prompt and model for continuity
 let currentPrompt = null;
 let currentModel = 'flux-fill-pro'; // Default to outpainting model for better continuity
 let debugMode = false;
 
-export const fetchNextImage = async (previousImage = null, modelName = null, enableDebug = false) => {
+export const fetchNextImage = async (previousImage = null, modelName = null, enableDebug = false, customPrompt = null) => {
   try {
     const selectedModel = modelName || currentModel;
+    const promptToUse = customPrompt || currentPrompt;
+    
     console.log('Fetching next image...', { 
       previousImage: !!previousImage, 
-      currentPrompt, 
+      promptToUse, 
       model: selectedModel,
-      debug: enableDebug 
+      debug: enableDebug,
+      isCustomPrompt: !!customPrompt
     });
     
     const response = await fetch(API_URL, {
@@ -26,7 +30,7 @@ export const fetchNextImage = async (previousImage = null, modelName = null, ena
       },
       body: JSON.stringify({ 
         previousImage, 
-        currentPrompt,
+        currentPrompt: promptToUse,
         modelName: selectedModel,
         debugMode: enableDebug
       }),
@@ -42,6 +46,11 @@ export const fetchNextImage = async (previousImage = null, modelName = null, ena
     
     // Update current prompt for next request
     currentPrompt = data.prompt;
+    
+    // If a custom prompt was provided, ensure it's stored for continuity
+    if (customPrompt && !previousImage) {
+      console.log('📝 Storing custom prompt for future evolution:', customPrompt);
+    }
     
     return {
       imageUrl: data.imageUrl,
@@ -126,6 +135,37 @@ export const evolvePrompt = async (prompt) => {
   } catch (error) {
     console.error("Failed to evolve prompt:", error);
     return prompt; // Return original prompt on error
+  }
+};
+
+export const expandPrompt = async (userPrompt) => {
+  try {
+    console.log('Expanding user prompt:', userPrompt);
+    
+    const response = await fetch(EXPAND_PROMPT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userPrompt }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to expand prompt: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log('Expanded prompt:', {
+      original: data.originalPrompt,
+      expanded: data.expandedPrompt
+    });
+    
+    return data.expandedPrompt;
+
+  } catch (error) {
+    console.error("Failed to expand prompt:", error);
+    // Return a basic fallback expansion
+    return `Aerial view of ${userPrompt}, captured from above with dramatic lighting and intricate details`;
   }
 };
 

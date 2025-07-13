@@ -7,7 +7,8 @@ const {
   evolvePrompt, 
   getAvailableModels, 
   MODEL_CONFIGS, 
-  DEFAULT_MODEL 
+  DEFAULT_MODEL,
+  expandUserPrompt 
 } = require('./aiService');
 
 const app = express();
@@ -179,6 +180,37 @@ app.get('/health', (req, res) => {
     modelsLoaded: Object.keys(MODEL_CONFIGS).length,
     defaultModel: DEFAULT_MODEL
   });
+});
+
+// API endpoint to expand user prompts
+app.post('/api/expand-prompt', async (req, res) => {
+  try {
+    const { userPrompt } = req.body;
+    
+    if (!userPrompt || typeof userPrompt !== 'string') {
+      return res.status(400).json({ 
+        error: 'Valid userPrompt is required' 
+      });
+    }
+    
+    console.log('📝 Expanding user prompt:', userPrompt);
+    
+    const expandedPrompt = await expandUserPrompt(userPrompt.trim());
+    
+    console.log('✨ Expanded prompt:', expandedPrompt);
+    
+    res.json({ 
+      originalPrompt: userPrompt,
+      expandedPrompt: expandedPrompt
+    });
+    
+  } catch (error) {
+    console.error('Error expanding prompt:', error);
+    res.status(500).json({ 
+      error: 'Failed to expand prompt',
+      details: error.message 
+    });
+  }
 });
 
 // Environment info endpoint (for debugging - should be removed in production)
