@@ -1,0 +1,44 @@
+# ==============================================
+# INFINITE VISUAL STORY - ENVIRONMENT CONFIG
+# ==============================================
+
+# 🤖 AI SERVICE API KEYS
+# Copy this content to a new file called .env and fill in your actual API keys
+
+# REPLICATE API TOKEN
+# Get this from: https://replicate.com/account/api-tokens
+REPLICATE_API_TOKEN=your_replicate_token_here
+
+# GOOGLE GEMINI API KEY  
+# Get this from: https://makersuite.google.com/app/apikey
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# 🚀 SERVER CONFIGURATION
+PORT=3001
+NODE_ENV=development
+
+# 🎨 IMAGE GENERATION SETTINGS
+IMAGE_WIDTH=1024
+IMAGE_HEIGHT=768
+GENERATION_TIMEOUT=30000
+MAX_IMAGES_PER_MINUTE=10
+
+# 🔧 OPTIONAL SETTINGS
+# Uncomment and modify if needed
+
+# For lower-end testing (faster generation, less cost)
+# IMAGE_WIDTH=1024
+# IMAGE_HEIGHT=768
+
+# For production deployment
+# NODE_ENV=production
+# DATABASE_URL=your_database_url_here
+
+# ==============================================
+# SETUP INSTRUCTIONS:
+# 1. Copy this content to a new file called .env (in the backend folder)
+# 2. Get your Replicate API token from https://replicate.com/account/api-tokens
+# 3. Get your Gemini API key from https://makersuite.google.com/app/apikey
+# 4. Replace the placeholder values with your actual keys
+# 5. Run: npm run dev
+# ============================================== 
