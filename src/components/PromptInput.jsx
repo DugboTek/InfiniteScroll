@@ -1,8 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './PromptInput.css';
 
-const PromptInput = ({ onPromptSubmit, isExpanding = false, hasStarted = false }) => {
+const PromptInput = ({ onPromptSubmit, isExpanding = false, currentPrompt = '' }) => {
   const [userInput, setUserInput] = useState('');
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false); // New state for scroll
+  const inputRef = useRef(null);
+  const lastScrollY = useRef(0); // Ref to track scroll direction
+
+  // Effect to handle scroll detection based on direction
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Determine scroll direction
+      if (currentScrollY > lastScrollY.current && currentScrollY > 30) {
+        // Scrolling Down
+        setIsScrolled(true);
+        // Collapse the input if it's open but empty
+        if (isExpanded && !userInput.trim()) {
+          setIsExpanded(false);
+        }
+      } else {
+        // Scrolling Up
+        setIsScrolled(false);
+      }
+      
+      // Update the last scroll position
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isExpanded, userInput]); // Re-run if these states change
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -11,6 +42,7 @@ const PromptInput = ({ onPromptSubmit, isExpanding = false, hasStarted = false }
     try {
       await onPromptSubmit(userInput.trim());
       setUserInput('');
+      setIsExpanded(false); // Collapse after submission
     } catch (error) {
       console.error('Error submitting prompt:', error);
     }
@@ -23,58 +55,81 @@ const PromptInput = ({ onPromptSubmit, isExpanding = false, hasStarted = false }
     }
   };
 
+  const handleFocus = () => {
+    setIsExpanded(true);
+  };
+
+  const handleBlur = (e) => {
+    // Only collapse if input is empty and we're not clicking on an example button
+    // Use setTimeout to allow example clicks to be processed first
+    setTimeout(() => {
+      if (!userInput.trim() && document.activeElement !== inputRef.current) {
+        setIsExpanded(false);
+      }
+    }, 150);
+  };
+
   const examples = [
-    "enchanted fairy realm",
+    "futuristic space station",
     "steampunk floating city", 
-    "underwater crystal kingdom",
-    "volcanic dragon empire",
-    "alien jungle planet",
-    "frozen magical palace"
+    "underwater crystal cave",
+    "volcanic dragon lair",
+    "alien jungle landscape",
+    "frozen arctic outpost"
   ];
 
   const handleExampleClick = (example) => {
+    console.log('Example clicked:', example);
     setUserInput(example);
+    setIsExpanded(true);
+    // Focus the input after setting the value
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, 50);
   };
 
-  // Don't show the input if the user has already started
-  if (hasStarted) {
-    return null;
-  }
+  const containerClasses = [
+    'floating-prompt-container',
+    isExpanded ? 'expanded' : '',
+    isScrolled ? 'scrolled' : ''
+  ].filter(Boolean).join(' ');
 
   return (
-    <div className="dream-world-overlay">
-      <div className="dream-world-container">
-        <div className="dream-world-header">
-          <h1 className="dream-world-title">
-            Type your dream world
-          </h1>
-          <p className="dream-world-subtitle">
-            Describe any world you can imagine, and we'll create an infinite aerial journey through it
-          </p>
+    <div className={containerClasses}>
+      <div className="current-world-info" onClick={() => setIsExpanded(!isExpanded)}>
+        <div className="world-info-text">
+          <span className="current-world-label">Current scene:</span>
+          <span className="current-world-text">{currentPrompt || "Tap here to begin a new journey..."}</span>
         </div>
-
-        <form onSubmit={handleSubmit} className="dream-world-form">
-          <div className="dream-input-container">
+        <span className={`collapse-icon ${isExpanded ? 'open' : ''}`}>▶</span>
+      </div>
+      
+      <div className="collapsible-content">
+        <form onSubmit={handleSubmit} className="floating-prompt-form">
+          <div className="floating-input-container">
             <input
+              ref={inputRef}
               type="text"
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="A magical kingdom with floating castles..."
-              className="dream-input"
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              placeholder="Describe a scene to explore..."
+              className="floating-input"
               disabled={isExpanding}
               maxLength={200}
-              autoFocus
             />
             <button 
               type="submit" 
-              className={`dream-submit-btn ${isExpanding ? 'loading' : ''}`}
+              className={`floating-submit-btn ${isExpanding ? 'loading' : ''}`}
               disabled={!userInput.trim() || isExpanding}
             >
               {isExpanding ? (
                 <>
                   <div className="spinner"></div>
-                  Creating your world...
                 </>
               ) : (
                 <>
@@ -84,44 +139,32 @@ const PromptInput = ({ onPromptSubmit, isExpanding = false, hasStarted = false }
                     <path d="M2 2l7.586 7.586"/>
                     <circle cx="11" cy="11" r="8"/>
                   </svg>
-                  Create World
                 </>
               )}
             </button>
           </div>
         </form>
 
-        <div className="dream-examples-section">
-          <p className="examples-label">Try these dream worlds:</p>
-          <div className="dream-examples-grid">
-            {examples.map((example, index) => (
-              <button
-                key={index}
-                type="button"
-                className="dream-example-chip"
-                onClick={() => handleExampleClick(example)}
-                disabled={isExpanding}
-              >
-                {example}
-              </button>
-            ))}
+        {/* Show examples when expanded */}
+        {isExpanded && (
+          <div className="floating-examples-section">
+            <p className="floating-examples-label">Quick examples:</p>
+            <div className="floating-examples-grid">
+              {examples.map((example, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className="floating-example-chip"
+                  onClick={() => handleExampleClick(example)}
+                  onMouseDown={(e) => e.preventDefault()} // Prevent input blur on click
+                  disabled={isExpanding}
+                >
+                  {example}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-
-        <div className="dream-features">
-          <div className="feature">
-            <div className="feature-icon"></div>
-            <span>Seamless aerial exploration</span>
-          </div>
-          <div className="feature">
-            <div className="feature-icon"></div>
-            <span>AI-generated infinite worlds</span>
-          </div>
-          <div className="feature">
-            <div className="feature-icon"></div>
-            <span>Consistent perspective throughout</span>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

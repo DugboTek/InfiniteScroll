@@ -7,237 +7,177 @@ const {
   evolvePrompt, 
   getAvailableModels, 
   MODEL_CONFIGS, 
-  DEFAULT_MODEL,
-  expandUserPrompt 
+  DEFAULT_MODEL
 } = require('./aiService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
+// Middleware with increased payload limit for base64 image data
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Increase limit for large image data
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // API endpoint to generate next image with model selection
 app.post('/api/generate-next-image', async (req, res) => {
   try {
+    console.log('🟢 === BACKEND SERVER DEBUG ===');
+    console.log('📥 Request received:');
+    
     const { 
       previousImage, 
       currentPrompt, 
-      modelName = DEFAULT_MODEL,
+      modelName = null,
       debugMode = false 
     } = req.body;
     
-    console.log('Received request for image generation');
-    console.log('Previous image provided:', !!previousImage);
-    console.log('Current prompt provided:', !!currentPrompt);
-    console.log('Model requested:', modelName);
-    console.log('Debug mode:', debugMode);
+    console.log('📋 Raw request body fields:');
+    console.log('  - previousImage:', !!previousImage);
+    console.log('  - currentPrompt:', currentPrompt);
+    console.log('  - modelName:', modelName);
+    console.log('  - debugMode:', debugMode);
+    
+    // Debug request size
+    const requestSize = JSON.stringify(req.body).length;
+    console.log(`📊 Request size: ${(requestSize / 1024 / 1024).toFixed(2)} MB`);
+    if (previousImage) {
+      console.log(`📊 Previous image size: ${(previousImage.length / 1024).toFixed(2)} KB`);
+    }
+    
+    // Auto-select model based on whether this is initial generation or continuation
+    const selectedModel = modelName || (previousImage ? 'flux-fill-pro' : 'flux-schnell');
+    
+    console.log('🎯 Model selection logic:');
+    console.log('  - modelName (requested):', modelName);
+    console.log('  - previousImage exists:', !!previousImage);
+    console.log('  - selectedModel (final):', selectedModel);
+    
+    console.log('🔍 Prompt analysis:');
+    console.log('  - currentPrompt type:', typeof currentPrompt);
+    console.log('  - currentPrompt value:', JSON.stringify(currentPrompt));
+    console.log('  - currentPrompt length:', currentPrompt ? currentPrompt.length : 0);
+    console.log('  - currentPrompt truthy:', !!currentPrompt);
     
     let result;
     
     if (!previousImage) {
       // Generate initial image
-      console.log(`Generating initial image with model: ${modelName}...`);
-      result = await generateInitialImage(currentPrompt, modelName);
+      console.log('🎨 === INITIAL IMAGE GENERATION PATH ===');
+      console.log('  - Path: generateInitialImage');
+      console.log('  - currentPrompt passed to AI:', currentPrompt);
+      console.log('  - selectedModel passed to AI:', selectedModel);
+      
+      result = await generateInitialImage(currentPrompt, selectedModel);
+      
+      console.log('📨 generateInitialImage result:');
+      console.log('  - result exists:', !!result);
+      console.log('  - result.imageUrl:', !!result?.imageUrl);
+      console.log('  - result.prompt:', result?.prompt);
+      console.log('  - result.modelUsed:', result?.modelUsed);
+      
     } else {
       // Generate next image with outpainting
-      console.log(`Generating next image with model: ${modelName}...`);
+      console.log('🎨 === CONTINUATION IMAGE GENERATION PATH ===');
+      console.log('  - Path: generateNextImage');
+      console.log('  - currentPrompt before evolution:', currentPrompt);
       
       // Evolve the prompt for narrative continuity
       let nextPrompt = currentPrompt;
       if (currentPrompt) {
         try {
-          nextPrompt = await evolvePrompt(currentPrompt);
+          console.log('🧠 Evolving prompt...');
+          const evolvedResult = await evolvePrompt(currentPrompt);
+          nextPrompt = evolvedResult.evolvedPrompt;
+          console.log('✅ Prompt evolved successfully:');
+          console.log('  - original:', currentPrompt);
+          console.log('  - evolved:', nextPrompt);
         } catch (error) {
-          console.warn('Failed to evolve prompt, using current prompt:', error.message);
-          nextPrompt = currentPrompt;
+          console.warn('⚠️ Prompt evolution failed, using original:', error.message);
+          console.log('  - fallback prompt:', currentPrompt);
         }
       }
       
-      result = await generateNextImage(previousImage, nextPrompt, modelName);
+      console.log('  - nextPrompt passed to AI:', nextPrompt);
+      console.log('  - selectedModel passed to AI:', selectedModel);
+      
+      result = await generateNextImage(previousImage, nextPrompt, selectedModel);
+      
+      console.log('📨 generateNextImage result:');
+      console.log('  - result exists:', !!result);
+      console.log('  - result.imageUrl:', !!result?.imageUrl);
+      console.log('  - result.prompt:', result?.prompt);
+      console.log('  - result.modelUsed:', result?.modelUsed);
     }
     
-    console.log('Image generation completed:', result.imageUrl);
-    console.log('Generation time:', result.generationTime, 'ms');
+    if (!result) {
+      console.error('❌ No result from AI service');
+      throw new Error('Failed to generate image');
+    }
+
+    console.log('✅ Image generation completed successfully');
     
-    // Prepare response with debug information if requested
     const response = {
       imageUrl: result.imageUrl,
       prompt: result.prompt,
-      isInitial: result.isInitial,
-      timestamp: result.timestamp,
-      width: result.width,
-      height: result.height
+      evolvedPrompt: result.evolvedPrompt,
+      modelUsed: result.modelUsed,
+      generationTime: result.generationTime,
+      debugInfo: debugMode ? result.debugInfo : undefined
     };
     
-    // Add debug information if debug mode is enabled
-    if (debugMode) {
-      response.debug = {
-        modelUsed: result.modelUsed,
-        generationTime: result.generationTime,
-        config: result.config,
-        supportsOutpainting: result.config.supports_outpainting,
-        inferenceSteps: result.config.steps
-      };
-    }
+    console.log('📤 Sending response to frontend:');
+    console.log('  - imageUrl:', !!response.imageUrl);
+    console.log('  - prompt:', response.prompt);
+    console.log('  - evolvedPrompt:', response.evolvedPrompt);
+    console.log('  - modelUsed:', response.modelUsed);
+    console.log('  - generationTime:', response.generationTime);
+    console.log('🟢 === END BACKEND SERVER DEBUG ===');
     
-    res.json(response);
+    res.status(200).json(response);
     
   } catch (error) {
     console.error('Error generating image:', error);
-    
-    // Return detailed error information for debugging
     res.status(500).json({ 
       error: 'Failed to generate image',
       details: error.message,
-      timestamp: new Date().toISOString(),
-      modelAttempted: req.body.modelName || DEFAULT_MODEL
+      timestamp: new Date().toISOString()
     });
   }
 });
 
-// Debug endpoint to get available models
-app.get('/api/models', (req, res) => {
+// API endpoint to get available models
+app.get('/api/models', async (req, res) => {
   try {
     const models = getAvailableModels();
-    res.json({
+    
+    res.status(200).json({ 
       models,
-      defaultModel: DEFAULT_MODEL,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error getting models:', error);
-    res.status(500).json({
-      error: 'Failed to get models',
-      details: error.message
-    });
-  }
-});
-
-// Debug endpoint to get model configuration
-app.get('/api/models/:modelName', (req, res) => {
-  try {
-    const { modelName } = req.params;
-    const config = MODEL_CONFIGS[modelName];
-    
-    if (!config) {
-      return res.status(404).json({
-        error: 'Model not found',
-        availableModels: Object.keys(MODEL_CONFIGS)
-      });
-    }
-    
-    res.json({
-      modelName,
-      config,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error getting model config:', error);
-    res.status(500).json({
-      error: 'Failed to get model configuration',
-      details: error.message
-    });
-  }
-});
-
-// Endpoint to evolve a prompt (for debug testing)
-app.post('/api/evolve-prompt', async (req, res) => {
-  try {
-    const { prompt } = req.body;
-    
-    if (!prompt) {
-      return res.status(400).json({
-        error: 'Prompt is required'
-      });
-    }
-    
-    const evolvedPrompt = await evolvePrompt(prompt);
-    
-    res.json({
-      originalPrompt: prompt,
-      evolvedPrompt,
-      timestamp: new Date().toISOString()
+      default: DEFAULT_MODEL,
+      configs: MODEL_CONFIGS
     });
     
   } catch (error) {
-    console.error('Error evolving prompt:', error);
-    res.status(500).json({
-      error: 'Failed to evolve prompt',
-      details: error.message
-    });
-  }
-});
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    port: PORT,
-    modelsLoaded: Object.keys(MODEL_CONFIGS).length,
-    defaultModel: DEFAULT_MODEL
-  });
-});
-
-// API endpoint to expand user prompts
-app.post('/api/expand-prompt', async (req, res) => {
-  try {
-    const { userPrompt } = req.body;
-    
-    if (!userPrompt || typeof userPrompt !== 'string') {
-      return res.status(400).json({ 
-        error: 'Valid userPrompt is required' 
-      });
-    }
-    
-    console.log('📝 Expanding user prompt:', userPrompt);
-    
-    const expandedPrompt = await expandUserPrompt(userPrompt.trim());
-    
-    console.log('✨ Expanded prompt:', expandedPrompt);
-    
-    res.json({ 
-      originalPrompt: userPrompt,
-      expandedPrompt: expandedPrompt
-    });
-    
-  } catch (error) {
-    console.error('Error expanding prompt:', error);
+    console.error('Error getting available models:', error);
     res.status(500).json({ 
-      error: 'Failed to expand prompt',
+      error: 'Failed to get available models',
       details: error.message 
     });
   }
 });
 
-// Environment info endpoint (for debugging - should be removed in production)
-app.get('/env-info', (req, res) => {
-  res.json({
-    nodeEnv: process.env.NODE_ENV,
-    port: process.env.PORT,
-    imageWidth: process.env.IMAGE_WIDTH,
-    imageHeight: process.env.IMAGE_HEIGHT,
-    maxImagesPerMinute: process.env.MAX_IMAGES_PER_MINUTE,
-    generationTimeout: process.env.GENERATION_TIMEOUT,
-    // Don't expose API keys in response
-    hasReplicateToken: !!process.env.REPLICATE_API_TOKEN,
-    hasGeminiKey: !!process.env.GEMINI_API_KEY,
-    hasHuggingfaceToken: !!process.env.HUGGINGFACE_API_TOKEN,
-    // Add model information
-    availableModels: Object.keys(MODEL_CONFIGS),
-    defaultModel: DEFAULT_MODEL
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
-// Start server (for local development)
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-}
-
-// Export for Vercel
-module.exports = app;
+// Start server
+app.listen(PORT, () => {
+  console.log(`🚀 Backend server running on port ${PORT}`);
+  console.log(`📍 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`🎨 Image generation: http://localhost:${PORT}/api/generate-next-image`);
+  console.log(`🔧 Models endpoint: http://localhost:${PORT}/api/models`);
+});

@@ -9,11 +9,22 @@ const HEALTH_URL = `${BASE_URL}/api/health`;
 
 // State to track current prompt and model for continuity
 let currentPrompt = null;
+let originalUserPrompt = null; // Track the original user theme throughout the session
 let currentModel = 'flux-schnell'; // Default to speed model for initial generation
 let debugMode = false;
+let inferenceSteps = 4; // Default steps
 
-export const fetchNextImage = async (previousImage = null, modelName = null, enableDebug = false, customPrompt = null) => {
+export const fetchNextImage = async (previousImage = null, modelName = null, enableDebug = false, customPrompt = null, steps = null) => {
   try {
+    console.log('🚀 === FRONTEND API SERVICE DEBUG ===');
+    console.log('📥 fetchNextImage called with:');
+    console.log('  - previousImage:', !!previousImage);
+    console.log('  - modelName:', modelName);
+    console.log('  - enableDebug:', enableDebug);
+    console.log('  - customPrompt:', customPrompt);
+    console.log('  - steps:', steps);
+    console.log('  - currentPrompt (global):', currentPrompt);
+    
     // Auto-select model based on whether this is initial generation or continuation
     let selectedModel = modelName || currentModel;
     if (!modelName) {
@@ -22,12 +33,26 @@ export const fetchNextImage = async (previousImage = null, modelName = null, ena
     
     const promptToUse = customPrompt || currentPrompt;
     
-    console.log('Fetching next image...', { 
+    console.log('🎯 Prompt selection logic:');
+    console.log('  - customPrompt:', customPrompt);
+    console.log('  - currentPrompt (global):', currentPrompt);
+    console.log('  - promptToUse (final):', promptToUse);
+    console.log('  - selectedModel:', selectedModel);
+    
+    // Handle original user prompt tracking
+    if (customPrompt && !previousImage) {
+      // This is a new initial image with custom prompt - store as original theme
+      originalUserPrompt = customPrompt;
+      console.log('🎯 New session started with original theme:', originalUserPrompt);
+    }
+    
+    console.log('📤 Sending to backend:', { 
       previousImage: !!previousImage, 
-      promptToUse, 
-      model: selectedModel,
-      debug: enableDebug,
-      isCustomPrompt: !!customPrompt
+      currentPrompt: promptToUse,
+      originalUserPrompt: originalUserPrompt,
+      modelName: selectedModel,
+      debugMode: enableDebug,
+      inferenceSteps: steps || inferenceSteps
     });
     
     const response = await fetch(API_URL, {
@@ -38,21 +63,42 @@ export const fetchNextImage = async (previousImage = null, modelName = null, ena
       body: JSON.stringify({ 
         previousImage, 
         currentPrompt: promptToUse,
+        originalUserPrompt: originalUserPrompt,
         modelName: selectedModel,
-        debugMode: enableDebug
+        debugMode: enableDebug,
+        inferenceSteps: steps || inferenceSteps
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.error('❌ API Error:', errorData);
       throw new Error(`API Error: ${errorData.error} - ${errorData.details}`);
     }
     
     const data = await response.json();
-    console.log('Received image data:', data);
+    console.log('📨 Backend response received:');
+    console.log('  - imageUrl:', !!data.imageUrl);
+    console.log('  - prompt:', data.prompt);
+    console.log('  - originalUserPrompt:', data.originalUserPrompt);
+    console.log('  - evolvedPrompt:', data.evolvedPrompt);
+    console.log('  - modelUsed:', data.modelUsed);
+    console.log('🚀 === END FRONTEND API SERVICE DEBUG ===');
     
-    // Update current prompt for next request
-    currentPrompt = data.prompt;
+    // Update original user prompt from backend if provided
+    if (data.originalUserPrompt && !originalUserPrompt) {
+      originalUserPrompt = data.originalUserPrompt;
+      console.log('🎯 Original user prompt updated from backend:', originalUserPrompt);
+    }
+    
+    // Update the current prompt with the evolved prompt or original prompt
+    if (data.evolvedPrompt) {
+      currentPrompt = data.evolvedPrompt;
+      console.log('📝 Updated currentPrompt (global) to evolved:', currentPrompt);
+    } else if (data.prompt) {
+      currentPrompt = data.prompt;
+      console.log('📝 Updated currentPrompt (global) to original:', currentPrompt);
+    }
     
     // If a custom prompt was provided, ensure it's stored for continuity
     if (customPrompt && !previousImage) {
@@ -155,8 +201,20 @@ export const setCurrentModel = (model) => {
 
 export const getCurrentPrompt = () => currentPrompt;
 export const setCurrentPrompt = (prompt) => {
+  console.log('🔄 setCurrentPrompt called:');
+  console.log('  - old currentPrompt:', currentPrompt);
+  console.log('  - new prompt:', prompt);
   currentPrompt = prompt;
-  console.log('Current prompt set to:', prompt);
+  console.log('  - updated currentPrompt:', currentPrompt);
+};
+
+export const getOriginalUserPrompt = () => originalUserPrompt;
+export const setOriginalUserPrompt = (prompt) => {
+  console.log('🎯 setOriginalUserPrompt called:');
+  console.log('  - old originalUserPrompt:', originalUserPrompt);
+  console.log('  - new original prompt:', prompt);
+  originalUserPrompt = prompt;
+  console.log('  - updated originalUserPrompt:', originalUserPrompt);
 };
 
 export const getDebugMode = () => debugMode;
@@ -165,10 +223,25 @@ export const setDebugMode = (enabled) => {
   console.log('Debug mode set to:', enabled);
 };
 
+export const getInferenceSteps = () => {
+  const storedSteps = localStorage.getItem('inferenceSteps');
+  return storedSteps ? parseInt(storedSteps, 10) : inferenceSteps;
+};
+
+export const setInferenceSteps = (steps) => {
+  inferenceSteps = steps;
+  localStorage.setItem('inferenceSteps', steps);
+  console.log('Inference steps set to:', steps);
+};
+
+
 // Clear state (useful for reset)
 export const clearState = () => {
   currentPrompt = null;
+  originalUserPrompt = null;
   currentModel = 'flux-schnell';
   debugMode = false;
-  console.log('API state cleared');
+  inferenceSteps = 4; // Reset to default
+  localStorage.removeItem('inferenceSteps');
+  console.log('API state cleared - all prompts and settings reset');
 };

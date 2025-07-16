@@ -7,7 +7,9 @@ import {
   getDebugMode,
   setDebugMode,
   clearState,
-  checkHealth
+  checkHealth,
+  getInferenceSteps,
+  setInferenceSteps
 } from '../services/api';
 import './DebugOverlay.css';
 
@@ -15,6 +17,7 @@ const DebugOverlay = ({
   onModelChange, 
   lastImageData = null, 
   onRefresh = null,
+  onStepsChange = null, // Receive setter
   isVisible = true 
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -22,9 +25,12 @@ const DebugOverlay = ({
   const [selectedModel, setSelectedModel] = useState(getCurrentModel());
   const [currentPrompt, setCurrentPromptDisplay] = useState(getCurrentPrompt());
   const [evolvedPrompt, setEvolvedPrompt] = useState('');
+  const [lastEvolvedPrompt, setLastEvolvedPrompt] = useState(''); // Store the last one
   const [isEvolvingPrompt, setIsEvolvingPrompt] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(getDebugMode());
   const [isLoading, setIsLoading] = useState(false);
+  const [steps, setSteps] = useState(getInferenceSteps());
+  const [isEvolvedPromptOpen, setIsEvolvedPromptOpen] = useState(false);
 
   // Load available models on component mount
   useEffect(() => {
@@ -52,6 +58,14 @@ const DebugOverlay = ({
     }
   };
 
+  const handleStepsChange = (newSteps) => {
+    setSteps(newSteps);
+    setInferenceSteps(newSteps);
+    if (onStepsChange) {
+      onStepsChange(newSteps); // Update parent state
+    }
+  };
+
   const handleDebugToggle = (enabled) => {
     setDebugEnabled(enabled);
     setDebugMode(enabled);
@@ -64,6 +78,7 @@ const DebugOverlay = ({
     try {
       const evolved = await evolvePrompt(currentPrompt);
       setEvolvedPrompt(evolved);
+      setLastEvolvedPrompt(evolved); // Save it
     } catch (error) {
       console.error('Failed to evolve prompt:', error);
     }
@@ -81,7 +96,9 @@ const DebugOverlay = ({
     clearState();
     setCurrentPromptDisplay('');
     setEvolvedPrompt('');
+    setLastEvolvedPrompt(''); // Clear this too
     setSelectedModel('flux-fill-pro');
+    setSteps(getInferenceSteps()); // Reset steps to default from API
     // Note: This will clear API state but won't reset the App component's initial load protection
     // A full page refresh would be needed to completely reset the initial load flag
   };
@@ -113,6 +130,14 @@ const DebugOverlay = ({
       >
         {isOpen ? '✕' : '🛠️'}
       </button>
+
+      {/* Minimized Evolved Prompt Display */}
+      {!isOpen && lastEvolvedPrompt && (
+        <div className="minimized-prompt">
+          <span className="minimized-prompt-label">Next:</span>
+          <span className="minimized-prompt-text">{lastEvolvedPrompt}</span>
+        </div>
+      )}
 
       {/* Main Panel */}
       {isOpen && (
@@ -159,8 +184,24 @@ const DebugOverlay = ({
             </div>
           </div>
 
-          {/* Debug Mode Toggle */}
+          {/* Inference Steps Slider */}
           <div className="debug-section">
+            <h4>Quality (Inference Steps)</h4>
+            <div className="slider-container">
+              <input
+                type="range"
+                min="1"
+                max="20"
+                value={steps}
+                className="slider"
+                onChange={(e) => handleStepsChange(parseInt(e.target.value, 10))}
+              />
+              <span className="slider-value">{steps}</span>
+            </div>
+          </div>
+
+          {/* Debug Mode Toggle */}
+          <div className="debug-section debug-mode-section">
             <label className="debug-toggle-label">
               <input
                 type="checkbox"
@@ -173,7 +214,6 @@ const DebugOverlay = ({
 
           {/* Current Prompt */}
           <div className="debug-section">
-            <h4>Current Prompt</h4>
             <div className="prompt-display">
               <div className="prompt-text">
                 {currentPrompt || 'No prompt yet'}
@@ -189,11 +229,16 @@ const DebugOverlay = ({
             </div>
             
             {evolvedPrompt && (
-              <div className="evolved-prompt">
-                <h5>Next Prompt Preview:</h5>
-                <div className="prompt-text evolved">
-                  {evolvedPrompt}
+              <div className="evolved-prompt-container">
+                <div className="evolved-prompt-header" onClick={() => setIsEvolvedPromptOpen(!isEvolvedPromptOpen)}>
+                  <h5>Next Prompt Preview</h5>
+                  <span className={`collapse-icon ${isEvolvedPromptOpen ? 'open' : ''}`}>▶</span>
                 </div>
+                {isEvolvedPromptOpen && (
+                  <div className="prompt-text evolved">
+                    {evolvedPrompt}
+                  </div>
+                )}
               </div>
             )}
           </div>

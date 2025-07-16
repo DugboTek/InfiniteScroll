@@ -83,7 +83,7 @@ To guide the visual narrative and prevent creative stagnation, the text prompt s
 ## 4. Data Flow & Optimization
 
 ### 4.0. Production Deployment
-**Production URL**: https://infinite-scroll-xafme9z5n-dugboteks-projects.vercel.app
+**Production URL**: https://infinite-scroll-pt3qiapom-dugboteks-projects.vercel.app
 **Deployment Platform**: Vercel
 **Frontend**: React/Vite served as static build
 **Backend**: ES Module serverless functions with full outpainting pipeline
