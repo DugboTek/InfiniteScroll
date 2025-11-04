@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     } = req.body;
     
     // Auto-select model based on whether this is an initial generation or a continuation
-    const selectedModel = modelName || (previousImage ? 'flux-fill-pro' : 'flux-schnell');
+    const selectedModel = modelName || DEFAULT_MODEL;
     
     console.log('Received request for image generation');
     console.log('Previous image provided:', !!previousImage);

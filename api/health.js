@@ -20,7 +20,7 @@ const MODEL_CONFIGS = {
   }
 };
 
-const DEFAULT_MODEL = 'flux-schnell';
+const DEFAULT_MODEL = 'dall-e-3';
 
 export default async function handler(req, res) {
   // Enable CORS

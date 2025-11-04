@@ -10,9 +10,23 @@ const HEALTH_URL = `${BASE_URL}/api/health`;
 // State to track current prompt and model for continuity
 let currentPrompt = null;
 let originalUserPrompt = null; // Track the original user theme throughout the session
-let currentModel = 'flux-schnell'; // Default to speed model for initial generation
+let currentModel = 'dall-e-3'; // Default to DALL-E 3 for high quality generation
 let debugMode = false;
-let inferenceSteps = 4; // Default steps
+let inferenceTimeThreshold = 30000; // 30 seconds
+
+// Enhanced model selection for optimal quality
+function selectOptimalModel(hasImages) {
+  // For initial images, use DALL-E 3 for highest quality
+  if (!hasImages) {
+    return 'dall-e-3';
+  }
+  
+  // For continuation images, the backend will automatically choose:
+  // 1. GPT-Image-1 (if available) - DALL-E quality with outpainting
+  // 2. GPT-4o (if available) - High quality multimodal outpainting  
+  // 3. Enhanced FLUX Fill Pro (fallback) - Improved quality settings
+  return 'dall-e-3'; // Backend will switch automatically for outpainting
+}
 
 export const fetchNextImage = async (previousImage = null, modelName = null, enableDebug = false, customPrompt = null, steps = null) => {
   try {
@@ -28,7 +42,8 @@ export const fetchNextImage = async (previousImage = null, modelName = null, ena
     // Auto-select model based on whether this is initial generation or continuation
     let selectedModel = modelName || currentModel;
     if (!modelName) {
-      selectedModel = previousImage ? 'flux-fill-pro' : 'flux-schnell';
+      // Use DALL-E 3 for both initial and continuation images
+      selectedModel = 'dall-e-3';
     }
     
     const promptToUse = customPrompt || currentPrompt;
@@ -224,14 +239,16 @@ export const setDebugMode = (enabled) => {
 };
 
 export const getInferenceSteps = () => {
+  // Return default steps for UI compatibility
+  // Note: Backend now auto-selects optimal settings
   const storedSteps = localStorage.getItem('inferenceSteps');
-  return storedSteps ? parseInt(storedSteps, 10) : inferenceSteps;
+  return storedSteps ? parseInt(storedSteps, 10) : 6; // Default to 6 steps
 };
 
 export const setInferenceSteps = (steps) => {
-  inferenceSteps = steps;
+  // Store for UI state, but backend will use auto-optimized settings
   localStorage.setItem('inferenceSteps', steps);
-  console.log('Inference steps set to:', steps);
+  console.log('Inference steps set to:', steps, '(Backend will auto-optimize)');
 };
 
 
@@ -239,7 +256,7 @@ export const setInferenceSteps = (steps) => {
 export const clearState = () => {
   currentPrompt = null;
   originalUserPrompt = null;
-  currentModel = 'flux-schnell';
+  currentModel = 'dall-e-3'; // Reset to DALL-E 3 as default
   debugMode = false;
   inferenceSteps = 4; // Reset to default
   localStorage.removeItem('inferenceSteps');

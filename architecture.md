@@ -23,13 +23,17 @@ This ensures seamless downward scrolling where each new image naturally continue
 The system supports multiple AI models with intelligent selection based on use case:
 
 **Smart Model Selection Strategy**:
-- **Initial Images**: FLUX Schnell (text-to-image capability required)
-- **Subsequent Images**: FLUX Fill Pro (outpainting for seamless transitions)
+- **Initial Images**: DALL-E 3 (high-quality text-to-image with built-in safety features)
+- **Subsequent Images**: DALL-E 3 (image editing/outpainting for seamless transitions)
 
 **Available Models**:
-- **FLUX Fill Pro**: **DEFAULT FOR OUTPAINTING** - Professional image extension (4 steps, ~15-20 seconds)
+- **DALL-E 3**: **DEFAULT MODEL** - High-quality text-to-image and outpainting (OpenAI API)
+  - *Supports both text-to-image and image editing for outpainting*
+  - *Built-in safety filters and content policy compliance*
+  - *1024x1024 fixed resolution with HD quality*
+- **FLUX Fill Pro**: Professional image extension (4 steps, ~15-20 seconds)
   - *Note: Requires input image - cannot generate from text alone*
-- **FLUX Schnell**: **DEFAULT FOR INITIAL** - Ultra-fast text-to-image (1 step, ~5-10 seconds)
+- **FLUX Schnell**: Ultra-fast text-to-image (1 step, ~5-10 seconds)
 - **FLUX Schnell LoRA**: Fine-tuned variants for balanced performance (2 steps, ~8-12 seconds)
 - **Stable Diffusion XL**: Fallback model for compatibility (20 steps, fallback option)
 
@@ -132,25 +136,30 @@ To guide the visual narrative and prevent creative stagnation, the text prompt s
 ### 5.1. Model Configuration
 ```javascript
 const MODEL_CONFIGS = {
+  'dall-e-3': {
+    name: 'dall-e-3',
+    steps: 1, // Not applicable for DALL-E
+    guidance_scale: 0.0, // Not applicable
+    use_case: 'quality',
+    api: 'openai'
+  },
   'flux-schnell': {
     name: 'black-forest-labs/flux-schnell',
     steps: 1, // Ultra-fast mode
     guidance_scale: 0.0,
-    use_case: 'speed'
+    use_case: 'speed',
+    api: 'replicate'
   },
   'flux-fill-pro': {
     name: 'black-forest-labs/flux-fill-pro',
     steps: 4,
     guidance_scale: 3.5,
-    use_case: 'outpainting'
-  },
-  'flux-schnell-lora': {
-    name: 'black-forest-labs/flux-schnell-lora',
-    steps: 2,
-    guidance_scale: 1.0,
-    use_case: 'balanced'
+    use_case: 'outpainting',
+    api: 'replicate'
   }
 };
+
+const DEFAULT_MODEL = 'dall-e-3';
 ```
 
 ### 5.2. Debug Interface Components

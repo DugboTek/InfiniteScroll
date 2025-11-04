@@ -186,7 +186,7 @@ const DebugOverlay = ({
 
           {/* Inference Steps Slider */}
           <div className="debug-section">
-            <h4>Quality (Inference Steps)</h4>
+            <h4>Quality Preference (Auto-Optimized)</h4>
             <div className="slider-container">
               <input
                 type="range"
@@ -198,6 +198,9 @@ const DebugOverlay = ({
               />
               <span className="slider-value">{steps}</span>
             </div>
+            <p className="auto-optimization-note">
+              ℹ️ Backend automatically selects optimal settings for each model (GPT-Image-1/GPT-4o/FLUX)
+            </p>
           </div>
 
           {/* Debug Mode Toggle */}

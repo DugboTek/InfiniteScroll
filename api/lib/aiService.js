@@ -1,10 +1,15 @@
 import Replicate from 'replicate';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import sharp from 'sharp';
 
 // Initialize AI services
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
+});
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -15,21 +20,73 @@ const IMAGE_HEIGHT = parseInt(process.env.IMAGE_HEIGHT) || 768;
 
 // Model configurations
 const MODEL_CONFIGS = {
+  'dall-e-3': {
+    name: 'dall-e-3',
+    steps: 1, // Not applicable, but for consistency
+    guidance_scale: 0.0, // Not applicable
+    use_case: 'quality',
+    api: 'openai'
+  },
   'flux-schnell': {
     name: 'black-forest-labs/flux-schnell',
     steps: 1,
+    max_steps: 4, // Add max steps limit
     guidance_scale: 0.0,
-    use_case: 'speed'
+    use_case: 'speed',
+    api: 'replicate'
   },
   'flux-fill-pro': {
-    name: 'black-forest-labs/flux-fill-pro', 
+    name: 'black-forest-labs/flux-fill-pro',
     steps: 4,
+    max_steps: 20, // Add max steps limit
     guidance_scale: 3.5,
-    use_case: 'outpainting'
+    use_case: 'outpainting',
+    api: 'replicate'
   }
 };
 
-const DEFAULT_MODEL = 'flux-schnell';
+const DEFAULT_MODEL = 'dall-e-3';
+
+// Create outpainting setup for DALL-E (requires transparency)
+async function createDalleOutpaintingSetup(previousImageUrl) {
+  try {
+    console.log('🔧 Creating DALL-E outpainting setup with transparency...');
+    const response = await fetch(previousImageUrl);
+    const imageBuffer = Buffer.from(await response.arrayBuffer());
+    const metadata = await sharp(imageBuffer).metadata();
+    const { width, height } = metadata;
+
+    const sliceHeight = Math.floor(height * 0.35);
+
+    // Extract bottom slice
+    const bottomSlice = await sharp(imageBuffer)
+      .extract({ left: 0, top: height - sliceHeight, width: width, height: sliceHeight })
+      .toBuffer();
+
+    // Create a new RGBA canvas with a transparent area for DALL-E to fill
+    const newCanvas = await sharp({
+      create: {
+        width: IMAGE_WIDTH,
+        height: IMAGE_HEIGHT,
+        channels: 4, // Must be RGBA for transparency
+        background: { r: 0, g: 0, b: 0, alpha: 0 } // Fully transparent
+      }
+    })
+    .composite([{ input: bottomSlice, top: 0, left: 0 }])
+    .png() // Must be PNG to support transparency
+    .toBuffer();
+
+    console.log('✅ DALL-E outpainting setup created.');
+    return {
+      image: newCanvas, // Return buffer directly for OpenAI client
+      sliceHeight
+    };
+  } catch (error) {
+    console.error('❌ Error creating DALL-E outpainting setup:', error);
+    throw error;
+  }
+}
+
 
 // Create advanced outpainting setup with gradient masks and feathering for seamless flow
 async function createOutpaintingSetup(previousImageUrl) {
@@ -231,37 +288,50 @@ async function generateInitialImage(customPrompt = null, modelName = DEFAULT_MOD
     const startTime = Date.now();
     const config = MODEL_CONFIGS[modelName] || MODEL_CONFIGS[DEFAULT_MODEL];
     
-    // For initial images, use user prompt directly without evolution
     const basePrompt = customPrompt 
       ? `Perfect top-down aerial view of ${customPrompt} captured directly from above, bird's eye perspective, satellite view, overhead shot, detailed terrain featuring ${customPrompt} visible from high altitude`
       : "Perfect top-down aerial view of a vast landscape captured directly from above, bird's eye perspective, satellite view, overhead shot, detailed terrain visible from high altitude";
     
-    const finalSteps = steps || config.steps;
-    console.log(`🔍 DEBUG - Final prompt sent to AI: "${basePrompt}"`);
-    console.log(`🔍 DEBUG - Model: ${config.name}, Steps: ${finalSteps}, Guidance: ${config.guidance_scale}`);
-    
-    const output = await replicate.run(config.name, {
-      input: {
-        prompt: basePrompt,
-        width: IMAGE_WIDTH,
-        height: IMAGE_HEIGHT,
-        num_inference_steps: finalSteps,
-        guidance_scale: config.guidance_scale,
-      },
-    });
+    let imageUrl;
+    let generationTime;
 
-    const imageUrl = Array.isArray(output) ? output[0] : output;
-    const generationTime = Date.now() - startTime;
-    
-    console.log(`✅ Initial image generated successfully in ${generationTime}ms`);
-    
+    if (config.api === 'openai') {
+      console.log(`🤖 Calling OpenAI DALL-E 3 API...`);
+      const response = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: basePrompt,
+        n: 1,
+        size: "1024x1024", // DALL-E 3 has specific size requirements
+        quality: "hd",
+      });
+      generationTime = Date.now() - startTime;
+      imageUrl = response.data[0].url;
+      console.log(`✅ OpenAI DALL-E 3 generation complete in ${generationTime}ms.`);
+    } else {
+      // Existing Replicate logic
+      const clampedSteps = Math.min(steps || config.steps, config.max_steps || 20);
+      console.log(`🤖 Calling Replicate API: ${config.name}`);
+      const output = await replicate.run(config.name, {
+        input: {
+          prompt: basePrompt,
+          width: IMAGE_WIDTH,
+          height: IMAGE_HEIGHT,
+          num_inference_steps: Math.round(clampedSteps), // Ensure integer and clamped
+          guidance_scale: config.guidance_scale,
+        },
+      });
+      generationTime = Date.now() - startTime;
+      imageUrl = Array.isArray(output) ? output[0] : output;
+      console.log(`✅ Replicate generation complete in ${generationTime}ms.`);
+    }
+
     return {
-      imageUrl,
+      imageUrl: imageUrl,
       prompt: basePrompt,
-      originalUserPrompt: customPrompt, // Store the original user input
+      originalUserPrompt: customPrompt,
       isInitial: true,
       modelUsed: modelName,
-      generationTime,
+      generationTime: generationTime,
       timestamp: new Date().toISOString(),
       width: IMAGE_WIDTH,
       height: IMAGE_HEIGHT
@@ -281,33 +351,50 @@ async function generateNextImage(previousImage, prompt, modelName = DEFAULT_MODE
     
     const startTime = Date.now();
     const config = MODEL_CONFIGS[modelName] || MODEL_CONFIGS[DEFAULT_MODEL];
-    const finalSteps = steps || config.steps;
+    let finalImageUrl;
+    let generationTime;
+    let sliceHeight = 0;
 
-    let replicateInput = {
-      prompt: prompt,
-      width: IMAGE_WIDTH,
-      height: IMAGE_HEIGHT,
-      num_inference_steps: finalSteps,
-      guidance_scale: config.guidance_scale,
-    };
+    if (config.api === 'openai') {
+      console.log(`🤖 Calling OpenAI DALL-E 2/3 API for outpainting...`);
+      const outpaintingSetup = await createDalleOutpaintingSetup(previousImage);
+      sliceHeight = outpaintingSetup.sliceHeight;
+      
+      const response = await openai.images.edit({
+        image: outpaintingSetup.image, // Pass the buffer directly
+        prompt: prompt,
+        n: 1,
+        size: "1024x1024",
+      });
+      generationTime = Date.now() - startTime;
+      finalImageUrl = response.data[0].url;
+      console.log(`✅ OpenAI DALL-E outpainting complete in ${generationTime}ms.`);
 
-    const outpaintingSetup = await createOutpaintingSetup(previousImage);
-    replicateInput.mask = outpaintingSetup.mask;
-    replicateInput.image = outpaintingSetup.image;
-    
-    console.log(`🔍 DEBUG - Final prompt sent to AI: "${prompt}"`);
-    console.log(`🔍 DEBUG - Model: ${config.name}, Steps: ${finalSteps}, Guidance: ${config.guidance_scale}`);
-    
-    const output = await replicate.run(config.name, { input: replicateInput });
+    } else {
+      // Existing Replicate logic
+      const clampedSteps = Math.min(steps || config.steps, config.max_steps || 20);
+      const outpaintingSetup = await createReplicateOutpaintingSetup(previousImage);
+      sliceHeight = outpaintingSetup.sliceHeight;
 
-    const generationTime = Date.now() - startTime;
-
-    let finalImageUrl = Array.isArray(output) ? output[0] : output;
+      let replicateInput = {
+        prompt: prompt,
+        width: IMAGE_WIDTH,
+        height: IMAGE_HEIGHT,
+        num_inference_steps: Math.round(clampedSteps), // Ensure integer and clamped
+        guidance_scale: config.guidance_scale,
+        image: outpaintingSetup.image, // Data URL
+        mask: outpaintingSetup.mask,   // Data URL
+      };
+      
+      const output = await replicate.run(config.name, { input: replicateInput });
+      generationTime = Date.now() - startTime;
+      finalImageUrl = Array.isArray(output) ? output[0] : output;
+    }
     
     // Crop the image to remove the original slice area for a seamless transition
-    if (finalImageUrl && outpaintingSetup.sliceHeight > 0) {
+    if (finalImageUrl && sliceHeight > 0) {
       console.log('✂️ Cropping generated image to ensure seamless transition...');
-      finalImageUrl = await cropOutpaintedImage(finalImageUrl, outpaintingSetup.sliceHeight);
+      finalImageUrl = await cropOutpaintedImage(finalImageUrl, sliceHeight);
     }
 
     return {
@@ -321,10 +408,10 @@ async function generateNextImage(previousImage, prompt, modelName = DEFAULT_MODE
         requestedModel: modelName,
         modelUsed: config.name,
         generationTime: generationTime,
-        inferenceSteps: finalSteps,
+        inferenceSteps: steps || config.steps,
         guidanceScale: config.guidance_scale,
         supportsOutpainting: true,
-        ...outpaintingSetup
+        sliceHeight: sliceHeight,
       }
     };
 
@@ -333,6 +420,9 @@ async function generateNextImage(previousImage, prompt, modelName = DEFAULT_MODE
     throw new Error(`Failed to generate next image: ${error.message}`);
   }
 }
+
+// Renaming original function to be more specific
+const createReplicateOutpaintingSetup = createOutpaintingSetup;
 
 // Evolve the prompt for narrative continuity
 async function evolvePrompt(currentPrompt, originalUserPrompt = null) {
